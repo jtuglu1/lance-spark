@@ -21,9 +21,10 @@ import org.apache.spark.sql.connector.expressions.aggregate.Aggregation;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.types.StructType;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class LanceInputPartition implements InputPartition {
+public class LanceInputPartition implements InputPartition, Serializable {
   private static final long serialVersionUID = 4723894723984723984L;
 
   private final StructType schema;

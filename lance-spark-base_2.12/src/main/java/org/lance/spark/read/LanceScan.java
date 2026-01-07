@@ -128,7 +128,8 @@ public class LanceScan
     return statistics;
   }
 
-  private static class LanceReaderFactory implements PartitionReaderFactory {
+  private static class LanceReaderFactory implements PartitionReaderFactory, Serializable {
+    private static final long serialVersionUID = 1L;
     @Override
     public PartitionReader<InternalRow> createReader(InputPartition partition) {
       Preconditions.checkArgument(

@@ -363,4 +363,35 @@ public abstract class BaseSparkConnectorReadTest {
     scala.collection.Seq<?> arr = (scala.collection.Seq<?>) selectRows.get(0).get(0);
     assertEquals(3, arr.size());
   }
+
+  @Test
+  public void testPersistWithReplicatedStorageLevel() {
+    // This test verifies that LanceInputPartition and LanceReaderFactory
+    // are properly serializable, which is required for persist() with
+    // replicated storage levels like MEMORY_AND_DISK_2.
+    //
+    // Before the fix, this would hang indefinitely because Spark couldn't
+    // serialize the reader factory for replication.
+    Dataset<Row> df =
+        spark
+            .read()
+            .format(LanceDataSource.name)
+            .option(
+                LanceSparkReadOptions.CONFIG_DATASET_URI,
+                TestUtils.getDatasetUri(dbPath, TestUtils.TestTable1Config.datasetName))
+            .load();
+
+    // Use MEMORY_AND_DISK_2 which requires serialization for replication
+    df.persist(org.apache.spark.storage.StorageLevel.MEMORY_AND_DISK_2());
+
+    // Force materialization - this would hang before the serialization fix
+    List<Row> rows = df.collectAsList();
+    assertEquals(TestUtils.TestTable1Config.expectedValues.size(), rows.size());
+
+    // Verify we can read from the persisted DataFrame
+    long count = df.count();
+    assertEquals(TestUtils.TestTable1Config.expectedValues.size(), count);
+
+    df.unpersist();
+  }
 }
