@@ -83,6 +83,8 @@ public abstract class BaseLanceNamespaceSparkCatalog implements TableCatalog, Su
   private static final String CONFIG_PARENT_DELIMITER_DEFAULT = ".";
 
   private LanceNamespace namespace;
+  private String namespaceImpl;
+  private Map<String, String> namespaceConfig;
   private String name;
   private Optional<String> extraLevel;
   private Optional<List<String>> parentPrefix;
@@ -100,7 +102,7 @@ public abstract class BaseLanceNamespaceSparkCatalog implements TableCatalog, Su
     if (!options.containsKey(CONFIG_IMPL)) {
       throw new IllegalArgumentException("Missing required configuration: " + CONFIG_IMPL);
     }
-    String impl = options.get(CONFIG_IMPL);
+    this.namespaceImpl = options.get(CONFIG_IMPL);
 
     // Handle parent prefix configuration
     if (options.containsKey(CONFIG_PARENT)) {
@@ -113,18 +115,19 @@ public abstract class BaseLanceNamespaceSparkCatalog implements TableCatalog, Su
       this.parentPrefix = Optional.empty();
     }
 
-    // Initialize the namespace with proper configuration
-    Map<String, String> namespaceOptions = new HashMap<>(options);
+    // Store namespace config for serialization to executors
+    this.namespaceConfig = new HashMap<>(options);
 
     // Use the global buffer allocator
-    this.namespace = LanceNamespace.connect(impl, namespaceOptions, LanceRuntime.allocator());
+    this.namespace =
+        LanceNamespace.connect(namespaceImpl, namespaceConfig, LanceRuntime.allocator());
 
     // Handle extra level name configuration
     if (options.containsKey(CONFIG_EXTRA_LEVEL)) {
       this.extraLevel = Optional.of(options.get(CONFIG_EXTRA_LEVEL));
-    } else if ("dir".equals(impl)) {
+    } else if ("dir".equals(namespaceImpl)) {
       this.extraLevel = Optional.of("default");
-    } else if ("rest".equals(impl)) {
+    } else if ("rest".equals(namespaceImpl)) {
       this.extraLevel = determineExtraLevelForRest();
     } else {
       this.extraLevel = Optional.empty();
@@ -388,6 +391,8 @@ public abstract class BaseLanceNamespaceSparkCatalog implements TableCatalog, Su
         .withCatalogDefaults(catalogConfig)
         .namespace(namespace)
         .tableId(tableId)
+        .namespaceImpl(namespaceImpl)
+        .namespaceConfig(namespaceConfig)
         .build();
   }
 

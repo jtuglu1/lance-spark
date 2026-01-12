@@ -86,6 +86,7 @@ public class LanceFragmentScanner implements AutoCloseable {
   public static LanceFragmentScanner create(int fragmentId, LanceInputPartition inputPartition) {
     try {
       LanceSparkReadOptions readOptions = inputPartition.getReadOptions();
+
       CacheKey key = new CacheKey(readOptions, inputPartition.getScanId());
       Map<Integer, Fragment> cachedFragments = LOADING_CACHE.get(key);
       Fragment fragment = cachedFragments.get(fragmentId);

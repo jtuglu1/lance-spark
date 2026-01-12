@@ -78,6 +78,12 @@ public class LanceSparkReadOptions implements Serializable {
   /** The table identifier within the namespace, used for credential refresh. */
   private final List<String> tableId;
 
+  /** The namespace implementation type (e.g., "rest", "dir") for reconstruction after deser. */
+  private final String namespaceImpl;
+
+  /** The namespace configuration options for reconstruction after deserialization. */
+  private final Map<String, String> namespaceConfig;
+
   private LanceSparkReadOptions(Builder builder) {
     this.datasetUri = builder.datasetUri;
     String[] paths = extractDbPathAndDatasetName(datasetUri);
@@ -93,6 +99,9 @@ public class LanceSparkReadOptions implements Serializable {
     this.storageOptions = new HashMap<>(builder.storageOptions);
     this.namespace = builder.namespace;
     this.tableId = builder.tableId;
+    this.namespaceImpl = builder.namespaceImpl;
+    this.namespaceConfig =
+        builder.namespaceConfig != null ? new HashMap<>(builder.namespaceConfig) : null;
   }
 
   /** Creates a new builder for LanceSparkReadOptions. */
@@ -207,7 +216,15 @@ public class LanceSparkReadOptions implements Serializable {
     return storageOptions;
   }
 
+  /**
+   * Returns the namespace, reconstructing it from config if needed after deserialization.
+   *
+   * @return the namespace, or null if not configured
+   */
   public LanceNamespace getNamespace() {
+    if (namespace == null && hasNamespaceConfig()) {
+      namespace = LanceNamespace.connect(namespaceImpl, namespaceConfig, LanceRuntime.allocator());
+    }
     return namespace;
   }
 
@@ -215,8 +232,33 @@ public class LanceSparkReadOptions implements Serializable {
     return tableId;
   }
 
+  public String getNamespaceImpl() {
+    return namespaceImpl;
+  }
+
+  public Map<String, String> getNamespaceConfig() {
+    return namespaceConfig;
+  }
+
+  /**
+   * Returns true if namespace mode is configured. This checks if the namespace is available or can
+   * be reconstructed from serialized config.
+   */
   public boolean hasNamespace() {
-    return namespace != null && tableId != null;
+    if (namespace != null && tableId != null) {
+      return true;
+    }
+    // Namespace can be reconstructed if we have the config
+    return tableId != null && namespaceImpl != null && namespaceConfig != null;
+  }
+
+  /**
+   * Returns true if the namespace config is available for reconstruction.
+   *
+   * @return true if namespace can be reconstructed from config
+   */
+  public boolean hasNamespaceConfig() {
+    return namespaceImpl != null && namespaceConfig != null;
   }
 
   /**
@@ -311,6 +353,8 @@ public class LanceSparkReadOptions implements Serializable {
     private Map<String, String> storageOptions = new HashMap<>();
     private LanceNamespace namespace;
     private List<String> tableId;
+    private String namespaceImpl;
+    private Map<String, String> namespaceConfig;
 
     private Builder() {}
 
@@ -366,6 +410,28 @@ public class LanceSparkReadOptions implements Serializable {
 
     public Builder tableId(List<String> tableId) {
       this.tableId = tableId;
+      return this;
+    }
+
+    /**
+     * Sets the namespace implementation type for reconstruction after deserialization.
+     *
+     * @param namespaceImpl the namespace implementation type (e.g., "rest", "dir")
+     * @return this builder
+     */
+    public Builder namespaceImpl(String namespaceImpl) {
+      this.namespaceImpl = namespaceImpl;
+      return this;
+    }
+
+    /**
+     * Sets the namespace configuration for reconstruction after deserialization.
+     *
+     * @param namespaceConfig the namespace configuration options
+     * @return this builder
+     */
+    public Builder namespaceConfig(Map<String, String> namespaceConfig) {
+      this.namespaceConfig = namespaceConfig != null ? new HashMap<>(namespaceConfig) : null;
       return this;
     }
 
