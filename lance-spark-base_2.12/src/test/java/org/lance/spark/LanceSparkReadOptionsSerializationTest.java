@@ -132,6 +132,7 @@ public class LanceSparkReadOptionsSerializationTest {
 
     Map<String, String> merged = new HashMap<>(catalogConfig.getStorageOptions());
     merged.put(LanceSparkReadOptions.CONFIG_EXECUTOR_CREDENTIAL_REFRESH, "true");
+    merged.put(LanceSparkReadOptions.CONFIG_USE_SCALAR_INDEX, "false");
 
     LanceSparkReadOptions options =
         LanceSparkReadOptions.builder()
@@ -143,5 +144,54 @@ public class LanceSparkReadOptionsSerializationTest {
     Assertions.assertTrue(
         options.isExecutorCredentialRefresh(),
         "per-read .option(...) must override the catalog-level default");
+
+    Assertions.assertFalse(
+        options.isUseScalarIndex(),
+        "per-read .option(...) must override the catalog-level default");
+  }
+
+  @Test
+  public void testUseScalarIndexFromCatalogDefaults() {
+    Map<String, String> catalogOpts = new HashMap<>();
+    LanceSparkCatalogConfig catalogConfig = LanceSparkCatalogConfig.from(catalogOpts);
+
+    LanceSparkReadOptions options =
+        LanceSparkReadOptions.builder()
+            .datasetUri("s3://bucket/path")
+            .withCatalogDefaults(catalogConfig)
+            .build();
+
+    Assertions.assertTrue(
+        options.isUseScalarIndex(), "use_scalar_index default value must be true");
+  }
+
+  @Test
+  public void testUseScalarIndexFromOptions() {
+    Map<String, String> properties = new HashMap<>();
+    properties.put(LanceSparkReadOptions.CONFIG_DATASET_URI, "s3://bucket/path");
+    properties.put(LanceSparkReadOptions.CONFIG_USE_SCALAR_INDEX, "false");
+
+    LanceSparkReadOptions options = LanceSparkReadOptions.from(properties);
+    Assertions.assertFalse(options.isUseScalarIndex());
+  }
+
+  @Test
+  public void testUseScalarIndexSerialization() throws IOException, ClassNotFoundException {
+    LanceSparkReadOptions options =
+        LanceSparkReadOptions.builder()
+            .datasetUri("s3://bucket/path")
+            .useScalarIndex(false)
+            .build();
+
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    ObjectOutputStream oos = new ObjectOutputStream(baos);
+    oos.writeObject(options);
+    oos.close();
+
+    ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+    ObjectInputStream ois = new ObjectInputStream(bais);
+    LanceSparkReadOptions deserializedOptions = (LanceSparkReadOptions) ois.readObject();
+
+    Assertions.assertFalse(deserializedOptions.isUseScalarIndex());
   }
 }
